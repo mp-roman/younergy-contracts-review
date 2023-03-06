@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.2;
+pragma solidity >=0.8.14;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -10,7 +11,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721Enumer
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721BurnableUpgradeable.sol";
 
-contract YounergyNFT is Initializable, ERC721Upgradeable, ERC721EnumerableUpgradeable, ERC721URIStorageUpgradeable, ERC721BurnableUpgradeable, AccessControlUpgradeable {
+contract YounergyNFT is Initializable, ERC721Upgradeable, ERC721EnumerableUpgradeable, ERC721URIStorageUpgradeable, ERC721BurnableUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using CountersUpgradeable for CountersUpgradeable.Counter;
     using SafeMathUpgradeable for uint256;
 
@@ -35,7 +36,7 @@ contract YounergyNFT is Initializable, ERC721Upgradeable, ERC721EnumerableUpgrad
     /// @param datatype Data Granular Mint NFT for.
     /// @param amount amount of Carbon Offset mint NFT for.
     /// @dev This event emitted for minting a new NFT with additional Carbon Offset info
-    event Mint(address from, address to, uint256 id, DataType datatype, uint256 amount);
+    event Mint(address indexed from, address indexed to, uint256 indexed id, DataType datatype, uint256 amount);
 
     function initialize(string memory name, string memory symbol) public initializer {
         __ERC721_init(name, symbol);
@@ -93,10 +94,11 @@ contract YounergyNFT is Initializable, ERC721Upgradeable, ERC721EnumerableUpgrad
         _setTokenURI(_tokenId, _tokenURI);
     }
 
-    function withdrawBalanceTo(address payable _to) external {
+    function withdrawBalanceTo(address payable _to) external nonReentrant() {
+        require(_to != address(0), "YounergyToken: Withdraw to zero address");
         require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "YounergyNFT: must have super admin role to withdraw balance");
-        bool sent = _to.send(address(this).balance);
-        require(sent, "Funds was not withdrawed correctly!");
+        (bool sent, ) = _to.call{value: address(this).balance}("");
+        require(sent, "Funds were not withdrawn correctly!");
     }
 
     /// @notice Returns a list of all NFT IDs assigned to an address.
@@ -128,7 +130,7 @@ contract YounergyNFT is Initializable, ERC721Upgradeable, ERC721EnumerableUpgrad
 
     // The following functions are overrides required by Solidity.
 
-    function _beforeTokenTransfer(address from, address to, uint256)
+    function _beforeTokenTransfer(address from, address to, uint256, uint256)
         pure
         internal
         override(ERC721Upgradeable, ERC721EnumerableUpgradeable)

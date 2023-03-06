@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.4.22 <0.9.0;
+pragma solidity >=0.8.14;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
@@ -31,6 +31,7 @@ contract RevenueDistributor is Initializable, ContextUpgradeable {
         uint256 tokenTotalSupplyWithoutDecimals = younergyToken.totalSupplyAt(currentSnapshotID).div(10**younergyToken.decimals());
         if (tokenTotalSupplyWithoutDecimals != 0) {
             uint256 revenuePerToken = msg.value.div(tokenTotalSupplyWithoutDecimals);
+            require(revenuePerToken > 0, "Insufficient revenue per token for distribution");
             snapshotRevenue[currentSnapshotID] = revenuePerToken;
             emit Distribute(currentSnapshotID, msg.value);
         } else {
@@ -61,7 +62,6 @@ contract RevenueDistributor is Initializable, ContextUpgradeable {
     function _revenue(uint256 _snapshotID) view internal returns(uint256) {
         uint256 _currentRevenue = 0;
         for(uint256 i = lastRevenueWithdrawAt[_msgSender()].add(1); i <= _snapshotID; i++) {
-            if (i == 0) {continue;}
             _currentRevenue = _currentRevenue.add(younergyToken.balanceOfAt(_msgSender(), i).mul(snapshotRevenue[i]).div(1 ether));
         }
         return _currentRevenue;

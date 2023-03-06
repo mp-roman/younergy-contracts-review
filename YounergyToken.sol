@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.4.22 <0.9.0;
+pragma solidity >=0.8.14;
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20SnapshotUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 // Custom error message for whitelist proof
 
 error NotInWhiteList(address _address, bytes32 _root, bytes32[] _proof, bytes32 _leaf);
 
-contract YounergyToken is ERC20Upgradeable, ERC20SnapshotUpgradeable, AccessControlEnumerableUpgradeable {
+contract YounergyToken is ERC20Upgradeable, ERC20SnapshotUpgradeable, AccessControlEnumerableUpgradeable, ReentrancyGuardUpgradeable {
 
   using SafeMathUpgradeable for uint256;
 
@@ -101,10 +102,11 @@ contract YounergyToken is ERC20Upgradeable, ERC20SnapshotUpgradeable, AccessCont
     return true;
   }
 
-  function withdrawBalanceTo(address payable _to) external {
+  function withdrawBalanceTo(address payable _to) external nonReentrant() {
+    require(_to != address(0), "YounergyToken: Withdraw to zero address is not possible");
     require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "YounergyToken: must have super admin role to withdraw balance");
-    bool sent = _to.send(address(this).balance);
-    require(sent, "Funds was not withdrawed correctly!");
+    (bool sent, ) = _to.call{value: address(this).balance}("");
+    require(sent, "Funds were not withdrawn correctly!");
   }
 
   /// @dev increase snapshot id used for revenue calculation
